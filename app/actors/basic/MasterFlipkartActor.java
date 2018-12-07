@@ -32,7 +32,7 @@ public class MasterFlipkartActor extends AbstractActor
 		mapperActor 		=	getContext().actorOf( new RoundRobinPool(100).props(Props.create(MapperActor.class)), "mapper");
 		checkReserveActor 	= 	getContext().actorOf( new RoundRobinPool(100).props(Props.create(CheckReserveActor.class)), "checkreserve");
 		buyActor 			=	getContext().actorOf( new RoundRobinPool(100).props(Props.create(BuyActor.class)), "buy");	
-		sparkActor 			=	getContext().actorOf( new RoundRobinPool(100).props(Props.create(SparkActor.class)), "spark");
+		sparkActor 			=	getContext().actorOf( new RoundRobinPool(1).props(Props.create(SparkActor.class)), "spark");
 		count = 0;
 	}
 	

@@ -85,6 +85,9 @@ public class SparkActor extends AbstractActor
 	@Override
 	public void postStop()
 	{
-		context.close();
+		if( context != null )
+		{
+			context.close();
+		}
 	}
 }
