@@ -1,15 +1,24 @@
 package actors.basic;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
+import com.datastax.spark.connector.japi.CassandraJavaUtil;
+import com.datastax.spark.connector.japi.rdd.CassandraJavaRDD;
+
+import static com.datastax.spark.connector.japi.CassandraJavaUtil.*;
+
 import akka.actor.AbstractActor;
 import akka.actor.Props;
 import datatypes.MapOrder;
 import datatypes.SparkMessage;
+import models.Order;
+import models.Product;
+import utils.ProductsComparator;
 
 public class SparkActor extends AbstractActor 
 {
@@ -19,8 +28,8 @@ public class SparkActor extends AbstractActor
 	@Override
 	public void preStart()
 	{
-		//conf = new SparkConf().setAppName("flipkartSMACK").setMaster("local");
-		//context = new JavaSparkContext(conf);
+		conf = new SparkConf().setAppName("flipkartSMACK").setMaster("local");
+		context = new JavaSparkContext(conf);
 	}
 	
 	public static Props getProps()
@@ -40,43 +49,48 @@ public class SparkActor extends AbstractActor
 	private SparkMessage handleMessage(MapOrder message)
 	{		
 		//System.out.println("MapOrder Received by SparkActor");
-		
-		/*CassandraJavaRDD<CassandraRow> rdd = CassandraJavaUtil.javaFunctions(context)
-		        .cassandraTable("mykeyspace", "products")
-		        .select("product_id", "name", "quantity", "price");
 
+		SparkMessage sparkMessage = new SparkMessage();
 		
-		long count = rdd.count();
-		System.out.println("Count: " + count);
+		List<Order> orders = message.getArrayList();
+		long count = 0;
 		
-		List<CassandraRow> lista = rdd.collect();
-
-		for( Object row : lista )
+		if( !orders.isEmpty() )
 		{
-			CassandraRow r = (CassandraRow) row;
-			int product_id = r.getInt("product_id");
-			String name = r.getString("name");
-			int quantity = r.getInt("quantity");
-			double price = r.getDouble("price");
+			System.out.println("Pedido Nao Vazio");
 			
-			System.out.println("Product_ID: " + product_id + " Name: " + name + " Quantity: " + quantity + " Price: " + price);
-		}*/
+			for( Order order : orders )
+			{
+				Product product = order.getProduct();
+				int quantity = order.getQuantity();
+				
+				System.out.println("Produto Comprado: " + product.getName() + " Tipo: " + product.getType() + " Quantidade: " + quantity);
+			
 		
-		/*CassandraJavaPairRDD< Map<String, Integer> > cassandraRdd = CassandraJavaUtil.javaFunctions(context)
-		        .cassandraTable("mykeyspace", "words", mapRowTo( Map.class ))
-		        .select("key", "value");*/
-    	
-		/*HashMap<String, Integer> map = new HashMap<String, Integer>(); 
-		Map<String, Integer> line = cassandraRdd.collectAsMap();
-		map.putAll(line);
+				CassandraJavaRDD<Product> rdd = CassandraJavaUtil.javaFunctions(context)
+				        .cassandraTable("mykeyspace", "products", mapRowTo( Product.class ))
+				        .select("product_id", "name", "price", "type", "quantity")
+				        .where("type = ?", product.getType() );
 		
-		for( Map.Entry<String, Integer> entry : map.entrySet() )
+		
+				count = rdd.count();
+				
+				List<Product> lista = rdd.takeOrdered(1, new ProductsComparator());
+		
+				for( Product p : lista )
+				{
+					System.out.println("Product_ID: " + p.getProduct_id() + " Name: " + p.getName() + " Type: " + p.getType() +" Price: " + p.getPrice() + " Quantity: " + p.getQuantity());
+					order.setProduct(p);
+					sparkMessage.getResult().add(order);
+				}		
+			}
+		}
+		else
 		{
-			System.out.println("CARAI " + entry.getKey());
-			System.out.println("DESGRAÇA " + entry.getValue());
-		}*/
+			System.out.println("Pedido Vazio");
+		}
 		
-		SparkMessage sparkMessage = new SparkMessage("Quantidade de Produtos Econtrados: "); //+ count);
+		sparkMessage.setMessage(("Quantidade de Produtos Econtrados: " + count));
 		sparkMessage.setControllerRef( message.getControllerRef() );
 		
 		return sparkMessage;

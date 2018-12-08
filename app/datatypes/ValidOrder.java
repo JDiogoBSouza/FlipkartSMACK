@@ -32,7 +32,7 @@ public class ValidOrder extends AbstractOrder
 		
 		for( Order order : orders )
 		{
-			if( order.getProduct().getId() == key )
+			if( order.getProduct().getProduct_id() == key )
 			{
 				result = orders.remove(order);
 			}

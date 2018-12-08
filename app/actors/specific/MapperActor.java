@@ -42,9 +42,9 @@ public class MapperActor extends AbstractActor
 
 		ArrayList<Order> kart = new ArrayList<Order>();
 		
-		/*for (JsonNode order : productsBuy.withArray("orders"))
+		for (JsonNode order : productsBuy.withArray("orders"))
 		{
-			Order newOrder = Json.fromJson(order, Order.class);*/
+			Order newOrder = Json.fromJson(order, Order.class);
 			
 			// Desnecessary
 			/*JsonNode product = order.with("product");
@@ -52,10 +52,10 @@ public class MapperActor extends AbstractActor
 			
 			newOrder.setProduct(newProduct);*/
 			
-			//System.out.println("Tipo: " + newOrder.getProduct().getType());
-			//System.out.println("Quantidade: " + newOrder.getQuantity());
-			//kart.add(newOrder);
-		//}
+			System.out.println("Tipo: " + newOrder.getProduct().getType());
+			System.out.println("Quantidade: " + newOrder.getQuantity());
+			kart.add(newOrder);
+		}
 		
 		MapOrder mapOrder = new MapOrder(kart);
 		mapOrder.setControllerRef( message.getControllerRef() );

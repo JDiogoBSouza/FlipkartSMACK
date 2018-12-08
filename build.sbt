@@ -19,8 +19,8 @@ libraryDependencies += "org.awaitility" % "awaitility" % "2.0.0" % Test
 libraryDependencies += "org.apache.kafka" % "kafka-clients" % "1.1.0"
 libraryDependencies += "org.apache.kafka" %% "kafka" % "2.0.0"
 libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.5"
-libraryDependencies += "com.datastax.cassandra" % "cassandra-driver-core" % "3.6.0"
-libraryDependencies += "com.datastax.spark" %% "spark-cassandra-connector" % "2.3.2"
+//libraryDependencies += "com.datastax.cassandra" % "cassandra-driver-core" % "3.6.0"
+libraryDependencies += "com.datastax.spark" %% "spark-cassandra-connector" % "2.3.0"
 
 libraryDependencies += "org.apache.spark" %% "spark-core" % "2.3.0"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.0"

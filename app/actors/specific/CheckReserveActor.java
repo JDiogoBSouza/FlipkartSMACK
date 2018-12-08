@@ -6,6 +6,7 @@ import datatypes.AbstractOrder;
 import datatypes.InvalidOrder;
 import datatypes.SparkMessage;
 import datatypes.ValidOrder;
+import models.Order;
 
 public class CheckReserveActor extends AbstractActor
 {	
@@ -32,7 +33,7 @@ public class CheckReserveActor extends AbstractActor
 	
 	private AbstractOrder handleMessage(SparkMessage message)
 	{		
-		//System.out.println("SparkMessage Received by CheckReserveActor");
+		System.out.println("SparkMessage Received by CheckReserveActor");
 		//System.out.println("Mensagem Recebida: " + message.getMessage() );
 		
 		// Check products on database and send the new quantities after buy.
@@ -41,22 +42,24 @@ public class CheckReserveActor extends AbstractActor
 		ValidOrder validOrder = new ValidOrder();
 		validOrder.setControllerRef( message.getControllerRef() );
 		
-		/*for( Order order : mapOrder.getArrayList() )
-		{				
-			// check if have enough products on stock database.
+		for( Order order : message.getResult() )
+		{									
+			System.out.println("Quantidade em Estoque: " + order.getProduct().getQuantity());
+			System.out.println("Quantidade Comprada:" + order.getQuantity());
 			
-			ArrayList<Order> resultFromTypedActor = null;
-			
-			if( resultFromTypedActor == null )
+			if( order.getProduct().getQuantity() >= order.getQuantity() )
 			{
-				validOrder.addOrders(resultFromTypedActor);
+				int oldQuantity = order.getProduct().getQuantity();
+				
+				order.getProduct().setQuantity( oldQuantity - order.getQuantity() );
+				validOrder.addOrder(order);
 			}
 			else
 			{
 				isValid = false;
 				break;
 			}
-		}*/
+		}
 		
 		if( isValid )
 		{
