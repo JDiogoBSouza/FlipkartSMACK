@@ -24,12 +24,14 @@ libraryDependencies += "com.datastax.spark" %% "spark-cassandra-connector" % "2.
 
 libraryDependencies += "org.apache.spark" %% "spark-core" % "2.3.0"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.0"
-libraryDependencies += "org.apache.spark" %% "spark-streaming" % "2.3.0" % "provided"
-libraryDependencies += "org.apache.bahir" %% "spark-streaming-akka" % "2.2.2"
-libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-10" % "2.3.0"
+//libraryDependencies += "org.apache.spark" %% "spark-streaming" % "2.3.0" % "provided"
+//libraryDependencies += "org.apache.bahir" %% "spark-streaming-akka" % "2.2.2"
+//libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-10" % "2.3.0"
+
 libraryDependencies += "com.typesafe.akka" %% "akka-stream-kafka" % "1.0-M1"
-libraryDependencies +=	"org.apache.hadoop" % "hadoop-common" % "2.8.0"
-libraryDependencies +=	"org.apache.hadoop" % "hadoop-hdfs" % "2.8.0"
+
+libraryDependencies +=	"org.apache.hadoop" % "hadoop-common" % "2.7.2"
+libraryDependencies +=	"org.apache.hadoop" % "hadoop-hdfs" % "2.7.2"
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
 

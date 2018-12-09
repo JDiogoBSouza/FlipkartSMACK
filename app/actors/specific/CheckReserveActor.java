@@ -1,5 +1,7 @@
 package actors.specific;
 
+import java.util.HashMap;
+
 import akka.actor.AbstractActor;
 import akka.actor.Props;
 import datatypes.AbstractOrder;
@@ -7,6 +9,7 @@ import datatypes.InvalidOrder;
 import datatypes.SparkMessage;
 import datatypes.ValidOrder;
 import models.Order;
+import models.Product;
 
 public class CheckReserveActor extends AbstractActor
 {	
@@ -42,17 +45,22 @@ public class CheckReserveActor extends AbstractActor
 		ValidOrder validOrder = new ValidOrder();
 		validOrder.setControllerRef( message.getControllerRef() );
 		
-		for( Order order : message.getResult() )
+		HashMap<Integer, Product> bestProducts = message.getResult();
+		
+		for( Order order : message.getKart().getOrders() )
 		{									
-			System.out.println("Quantidade em Estoque: " + order.getProduct().getQuantity());
+			Product stockProduct = bestProducts.get(order.getProduct().getType());
+			int stockQuantity = bestProducts.get(order.getProduct().getType()).getQuantity();
+			
+			System.out.println("Quantidade em Estoque: " + stockQuantity);
 			System.out.println("Quantidade Comprada:" + order.getQuantity());
 			
-			if( order.getProduct().getQuantity() >= order.getQuantity() )
-			{
-				int oldQuantity = order.getProduct().getQuantity();
+			if( stockQuantity >= order.getQuantity() )
+			{				
+				stockProduct.setQuantity( stockQuantity - order.getQuantity() );
 				
-				order.getProduct().setQuantity( oldQuantity - order.getQuantity() );
-				validOrder.addOrder(order);
+				order.setProduct(stockProduct);
+				validOrder.getKart().addOrder(order);
 			}
 			else
 			{
@@ -63,6 +71,13 @@ public class CheckReserveActor extends AbstractActor
 		
 		if( isValid )
 		{
+			/*System.out.println("New Products Values:");
+			
+			for( Order o : validOrder.getKart().getOrders() )
+			{
+				System.out.println("Nome: " + o.getProduct().getName() + " Type:" + o.getProduct().getType() + " Price:" + o.getProduct().getPrice() + " Quantity:" + o.getProduct().getQuantity());
+			}*/
+			
 			return validOrder;
 		}
 		else

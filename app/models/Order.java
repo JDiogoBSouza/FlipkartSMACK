@@ -1,6 +1,8 @@
 package models;
 
-public class Order
+import java.io.Serializable;
+
+public class Order implements Serializable
 {
 	Product product;
 	int quantity;

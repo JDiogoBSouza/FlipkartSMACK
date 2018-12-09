@@ -8,6 +8,7 @@ import akka.actor.AbstractActor;
 import akka.actor.Props;
 import datatypes.MapOrder;
 import datatypes.RequestOrder;
+import models.Kart;
 import models.Order;
 import play.libs.Json;
 
@@ -40,7 +41,7 @@ public class MapperActor extends AbstractActor
 		
 		JsonNode productsBuy = message.getJsonNode();
 
-		ArrayList<Order> kart = new ArrayList<Order>();
+		Kart kart = new Kart();
 		
 		for (JsonNode order : productsBuy.withArray("orders"))
 		{
@@ -54,7 +55,7 @@ public class MapperActor extends AbstractActor
 			
 			System.out.println("Tipo: " + newOrder.getProduct().getType());
 			System.out.println("Quantidade: " + newOrder.getQuantity());
-			kart.add(newOrder);
+			kart.addOrder(newOrder);
 		}
 		
 		MapOrder mapOrder = new MapOrder(kart);

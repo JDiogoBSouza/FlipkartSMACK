@@ -1,48 +1,25 @@
 package datatypes;
 
 import java.util.ArrayList;
+
+import models.Kart;
 import models.Order;
 
 public class ValidOrder extends AbstractOrder
 {
-	ArrayList<Order> orders;
+	private Kart kart;
 	
 	public ValidOrder()
 	{
 		// Verificar publicação segura ?
-		orders = new ArrayList<Order>();
+		kart = new Kart();
 	}
 
-	public void addOrder(Order order)
-	{
-		orders.add(order);
+	public Kart getKart() {
+		return kart;
 	}
 
-	public void addOrders(ArrayList<Order> orders)
-	{
-		for( Order order : orders )
-		{
-			this.orders.add(order);
-		}
-	}
-	
-	public boolean removeProduct(int key)
-	{
-		boolean result = false;
-		
-		for( Order order : orders )
-		{
-			if( order.getProduct().getProduct_id() == key )
-			{
-				result = orders.remove(order);
-			}
-		}
-		
-		return result;
-	}
-	
-	public ArrayList<Order> getArrayList()
-	{
-		return orders;
+	public void setKart(Kart kart) {
+		this.kart = kart;
 	}
 }
