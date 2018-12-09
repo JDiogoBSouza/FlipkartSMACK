@@ -1,6 +1,7 @@
 package actors.basic;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -15,6 +16,9 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.mapping.Mapper;
+import com.datastax.driver.mapping.MappingManager;
+import com.datastax.driver.mapping.Result;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.rdd.CassandraJavaRDD;
 
@@ -25,6 +29,8 @@ import akka.actor.Props;
 import akka.japi.Function2;
 import datatypes.MapOrder;
 import datatypes.SparkMessage;
+import datatypes.TransactionDetails;
+import datatypes.ValidOrder;
 import models.Kart;
 import models.Order;
 import models.Product;
@@ -42,9 +48,12 @@ public class SparkActor extends AbstractActor
 	public void preStart()
 	{
 		System.out.println("Abrindo Conexao Spark com Cassandra");
-		conf = new SparkConf().setAppName("flipkartSMACK").setMaster("local");		
+		conf = new SparkConf().setAppName("flipkartSMACK").setMaster("local[*]");		
 		context = new JavaSparkContext(conf);
 
+		System.out.println("Default Min PARTITIONS: " + context.defaultMinPartitions());
+		System.out.println("Default Parallelism: " + context.defaultParallelism());
+		
 		//Initialise the resources to be used by actor e.g. db
 		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
 		session = cluster.connect("mykeyspace");
@@ -61,6 +70,9 @@ public class SparkActor extends AbstractActor
 		return receiveBuilder()
 	        .match(MapOrder.class, message -> { sender().tell( handleMessage(message), self());
 	        })
+            .match(ValidOrder.class,  
+            		message -> { sender().tell( handleMessage(message), self());
+            })
 	        .build();
 	}
 	
@@ -80,54 +92,68 @@ public class SparkActor extends AbstractActor
 		
 		if( !kart.isEmpty() )
 		{
-			System.out.println("Pedido Nao Vazio");
+			//System.out.println("Pedido Nao Vazio");
 			
 			long start = System.currentTimeMillis();
 			
-			JavaRDD<Product> rdd = CassandraJavaUtil.javaFunctions(context)
+			JavaPairRDD<Integer, Iterable<Product>> listaFiltered = CassandraJavaUtil.javaFunctions(context)
 			        .cassandraTable("mykeyspace", "products", mapRowTo( Product.class ))
-			        .select("product_id", "name", "price", "type", "quantity").repartition(context.defaultParallelism());
+			        .select("product_id", "name", "price", "type", "quantity")
+			        .repartition(context.defaultParallelism())
+			        .filter(  p -> kart.isInKart(p) )
+					.groupBy(p -> p.getType());
 			        //.where("type = ?", product.getType() );
 			
 			long elapsedTimeMillis = System.currentTimeMillis()-start;
-			System.out.println("Tempo de Leitura Spark - Cassandra " + elapsedTimeMillis + " ms");
+			System.out.println("Tempo de Leitura + Filtragem - Spark - Cassandra " + elapsedTimeMillis + " ms");
 			
-//			// ONLY CASSANDRA QUERY
-//			//ResultSet results = session.execute("SELECT * FROM products WHERE product_id = " + '0'); 
-//			ResultSet results = session.execute("SELECT * FROM products"); 
-//			
-//			elapsedTimeMillis = System.currentTimeMillis()-start;
-//			System.out.println("Tempo de Leitura Akka - Cassandra " + elapsedTimeMillis + " ms");
-//			
-//
-//			start = System.currentTimeMillis();
-//			Iterator<Row> iterator = results.iterator(); 
-//			
-//			if( iterator.hasNext() )
-//			{
-//				// Update
-//				Row row = iterator.next();
-//				String line = "Product_id = " + row.getInt("product_id") + " Name = "+ row.getString("name");
-//				System.out.println(line);
-//			}
 			
 			start = System.currentTimeMillis();
 			
-			List<Product> lista = rdd.collect();
+			// -------------------- ONLY CASSANDRA QUERY -----------------------------
 			
+			//ResultSet results = session.execute("SELECT * FROM products WHERE product_id = " + '0'); 
+			ResultSet results = session.execute("SELECT * FROM products"); 
+			
+			List<Product> cassandraList = new ArrayList<Product>();
+			
+			start = System.currentTimeMillis();
+			Iterator<Row> iterator = results.iterator(); 
+			
+			MappingManager manager = new MappingManager(session);
+			Mapper<Product> mapper = manager.mapper(Product.class);
+
+			Result<Product> cassandraProducts = mapper.map(results);
+			
+			for (Product p : cassandraProducts)
+			{
+			    //System.out.println("Produto : " + p.getName() );
+			    cassandraList.add(p);
+			}
+
+			/*
+			if( iterator.hasNext() )
+			{
+				// Update
+				Row row = iterator.next();
+				
+				Product prod = new Product(row.getInt("product_id"), row.getString("name"), row.getInt("type"), row.getDouble("price"), row.getInt("quantity"));
+				
+				
+				String line = "Product_id = " + prod.getProduct_id() + " Name = "+ prod.getName();
+				System.out.println(line);
+			}*/
+			
+			JavaRDD<Product> productsRDD = context.parallelize(cassandraList);		
+			JavaPairRDD<Integer, Iterable<Product>> listaFilteredCassandra = productsRDD.filter(  p -> kart.isInKart(p) )
+													 						   			.groupBy(p -> p.getType());
+			
+			// --------------------------------- FINAL QUERY CASSANDRA -----------------------------------
+
 			elapsedTimeMillis = System.currentTimeMillis()-start;
-			System.out.println("Tempo de Coleta do RDD " + elapsedTimeMillis + " ms");
+			System.out.println("Tempo de Leitura + Filtragem - Akka - Cassandra " + elapsedTimeMillis + " ms");
 			
-
-			JavaRDD<Product> productsRDD = context.parallelize(lista);		
-			List<Product> listaFiltered = productsRDD.filter(  p -> kart.isInKart(p) ).collect();
-			
-
-			JavaRDD<Product> listaFilteredRDD = context.parallelize(listaFiltered);	
-	        JavaPairRDD<Integer, Iterable<Product>> rddY = listaFilteredRDD.groupBy(p -> p.getType());
-
-			
-			for( Tuple2<Integer, Iterable<Product>> pair : rddY.collect() )
+			/*for( Tuple2<Integer, Iterable<Product>> pair : listaFiltered.collect() )
 			{
 				for( Product prod : pair._2 )
 				{
@@ -135,9 +161,9 @@ public class SparkActor extends AbstractActor
 					System.out.println("Tipo: " + pair._1);
 					System.out.println("Produto: " + prod.getName() );
 				}
-			}
-			
-			for( Tuple2<Integer, Iterable<Product>> pair : rddY.collect() )
+			}*/
+		
+			for( Tuple2<Integer, Iterable<Product>> pair : listaFilteredCassandra.collect() )
 			{
 				@SuppressWarnings("unchecked")
 				List<Product> list = (ArrayList<Product>) IteratorUtils.toList(pair._2.iterator());
@@ -150,7 +176,7 @@ public class SparkActor extends AbstractActor
 		}
 		else
 		{
-			System.out.println("Pedido Vazio");
+			//System.out.println("Pedido Vazio");
 		}
 		
 		sparkMessage.setResult(bestProducts);
@@ -158,6 +184,27 @@ public class SparkActor extends AbstractActor
 		sparkMessage.setControllerRef( message.getControllerRef() );
 		
 		return sparkMessage;
+	}
+	
+	private TransactionDetails handleMessage(ValidOrder message)
+	{
+		List<Order> orders = message.getKart().getOrders();
+		List<Product> products = new ArrayList<Product>();
+		
+		for( Order o : orders)
+		{
+			products.add(o.getProduct());
+		}
+		
+		JavaRDD<Product> productsRDD = context.parallelize(products);
+		
+		CassandraJavaUtil.javaFunctions(productsRDD)
+        .writerBuilder("mykeyspace", "products", mapToRow(Product.class)).saveToCassandra();
+		
+		TransactionDetails transactionDetails = new TransactionDetails("Successful Transaction", new Date());
+		transactionDetails.setControllerRef( message.getControllerRef() );
+		
+		return transactionDetails;
 	}
 	
 	@Override

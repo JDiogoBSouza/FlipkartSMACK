@@ -12,7 +12,6 @@ import actors.basic.MasterFlipkartActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import datatypes.RequestOrder;
-import play.libs.Akka;
 import play.mvc.*;
 import scala.compat.java8.FutureConverters;
 
@@ -34,13 +33,13 @@ public class ServerActorController extends Controller
 		
 	    if(json == null)
 	    {
-	    	return CompletableFuture.completedFuture( Results.badRequest("Expecting Json data") );
+	    	return CompletableFuture.completedFuture( badRequest("Expecting Json data") );
 	    }
 	    else
 	    { 
 	    	RequestOrder requestOrder = new RequestOrder(json);
 	    	
-	        return FutureConverters.toJava( ask(flipkartActor, requestOrder, 20000) ).thenApply(response -> ok((String) response));
+	        return FutureConverters.toJava( ask(flipkartActor, requestOrder, 60000) ).thenApply(response -> response.toString().contains("Successful Transaction") ? ok((String) response) : Results.badRequest((String) response));
 	    }
 	    
     }

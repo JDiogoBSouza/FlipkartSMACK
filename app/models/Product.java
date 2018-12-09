@@ -2,6 +2,9 @@ package models;
 
 import java.io.Serializable;
 
+import com.datastax.driver.mapping.annotations.Table;
+
+@Table(name = "products")
 public class Product implements Serializable, Comparable<Product>
 {
 	private int product_id;

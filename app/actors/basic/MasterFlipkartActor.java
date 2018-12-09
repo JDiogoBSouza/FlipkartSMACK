@@ -62,7 +62,7 @@ public class MasterFlipkartActor extends AbstractActor
                 })
 				.match(SparkMessage.class, message -> { checkReserveActor.tell( handleMessage(message), self() );
                 })
-                .match(ValidOrder.class, message -> { buyActor.tell( handleMessage(message), self() );
+                .match(ValidOrder.class, message -> { sparkActor.tell( handleMessage(message), self() );
                 })
                 .match(InvalidOrder.class, message -> { message.getControllerRef().tell( handleMessage(message), self() );
                 })

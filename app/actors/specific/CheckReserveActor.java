@@ -36,7 +36,7 @@ public class CheckReserveActor extends AbstractActor
 	
 	private AbstractOrder handleMessage(SparkMessage message)
 	{		
-		System.out.println("SparkMessage Received by CheckReserveActor");
+		//System.out.println("SparkMessage Received by CheckReserveActor");
 		//System.out.println("Mensagem Recebida: " + message.getMessage() );
 		
 		// Check products on database and send the new quantities after buy.
