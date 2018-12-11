@@ -7,9 +7,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import akka.actor.AbstractActor;
 import akka.actor.Props;
 import datatypes.MapOrder;
+import datatypes.MapSearch;
+import datatypes.ProductSearch;
 import datatypes.RequestOrder;
 import models.Kart;
 import models.Order;
+import models.Product;
 import play.libs.Json;
 
 public class MapperActor extends AbstractActor
@@ -30,6 +33,9 @@ public class MapperActor extends AbstractActor
 	{
 		return receiveBuilder()
             .match(RequestOrder.class,  
+            		message -> { sender().tell( handleMessage(message), self());
+            })            
+            .match(ProductSearch.class,  
             		message -> { sender().tell( handleMessage(message), self());
             })
             .build();
@@ -62,6 +68,24 @@ public class MapperActor extends AbstractActor
 		mapOrder.setControllerRef( message.getControllerRef() );
 		
 		return mapOrder;
+	}
+	
+	private MapSearch handleMessage(ProductSearch message)
+	{
+		//System.out.println("JsonNode Received by MapperActor");
+		
+		JsonNode productSearch = message.getJsonNode();
+		
+		Product searchProduct = Json.fromJson(productSearch, Product.class);
+		
+		//System.out.println("Json Recebido: " + productSearch);
+		//System.out.println("Buscando pelo Tipo: " + searchProduct.getType() );
+		
+		MapSearch mapSearch = new MapSearch(searchProduct);
+		
+		mapSearch.setControllerRef( message.getControllerRef() );
+		
+		return mapSearch;
 	}
 	
 	@Override

@@ -1,6 +1,7 @@
 package actors.specific;
 
 import java.util.HashMap;
+import java.util.List;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;
@@ -46,28 +47,33 @@ public class CheckReserveActor extends AbstractActor
 		validOrder.setControllerRef( message.getControllerRef() );
 		
 		HashMap<Integer, Product> bestProducts = message.getResult();
+		List<Order> orders = message.getKart().getOrders();
 		
-		for( Order order : message.getKart().getOrders() )
-		{									
-			Product stockProduct = bestProducts.get(order.getProduct().getType());
-			int stockQuantity = bestProducts.get(order.getProduct().getType()).getQuantity();
-			
-			System.out.println("Quantidade em Estoque: " + stockQuantity);
-			System.out.println("Quantidade Comprada:" + order.getQuantity());
-			
-			if( stockQuantity >= order.getQuantity() )
-			{				
-				stockProduct.setQuantity( stockQuantity - order.getQuantity() );
+		if(!bestProducts.isEmpty() && !orders.isEmpty() )
+		{
+			for( Order order : orders )
+			{									
+				Product stockProduct = bestProducts.get(order.getProduct().getType());
+				int stockQuantity = bestProducts.get(order.getProduct().getType()).getQuantity();
 				
-				order.setProduct(stockProduct);
-				validOrder.getKart().addOrder(order);
-			}
-			else
-			{
-				isValid = false;
-				break;
+				System.out.println("Quantidade em Estoque: " + stockQuantity);
+				System.out.println("Quantidade Comprada:" + order.getQuantity());
+				
+				if( stockQuantity >= order.getQuantity() )
+				{				
+					stockProduct.setQuantity( stockQuantity - order.getQuantity() );
+					
+					order.setProduct(stockProduct);
+					validOrder.getKart().addOrder(order);
+				}
+				else
+				{
+					isValid = false;
+					break;
+				}
 			}
 		}
+		
 		
 		if( isValid )
 		{

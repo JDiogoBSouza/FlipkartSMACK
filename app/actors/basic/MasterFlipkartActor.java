@@ -11,7 +11,11 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.routing.RoundRobinPool;
 import datatypes.MapOrder;
+import datatypes.MapSearch;
+import datatypes.ProductSearch;
+import datatypes.ProductSearchGet;
 import datatypes.RequestOrder;
+import datatypes.SearchResults;
 import datatypes.SparkMessage;
 import datatypes.InvalidOrder;
 import datatypes.TransactionDetails;
@@ -32,7 +36,7 @@ public class MasterFlipkartActor extends AbstractActor
 		mapperActor 		=	getContext().actorOf( new RoundRobinPool(100).props(Props.create(MapperActor.class)), "mapper");
 		checkReserveActor 	= 	getContext().actorOf( new RoundRobinPool(100).props(Props.create(CheckReserveActor.class)), "checkreserve");
 		buyActor 			=	getContext().actorOf( new RoundRobinPool(100).props(Props.create(BuyActor.class)), "buy");	
-		sparkActor 			=	getContext().actorOf( new RoundRobinPool(1).props(Props.create(SparkActor.class)), "spark");
+		sparkActor 			=	getContext().actorOf( Props.create(SparkActor.class), "spark");
 		count = 0;
 	}
 	
@@ -58,15 +62,23 @@ public class MasterFlipkartActor extends AbstractActor
 		return receiveBuilder()
 				.match(RequestOrder.class, message -> { mapperActor.tell( handleMessage(message), self() );
                 })
+				.match(ProductSearch.class, message -> { mapperActor.tell( handleMessage(message), self() );
+                })
+				.match(ProductSearchGet.class, message -> { sparkActor.tell( handleMessage(message), self() );
+                })
 				.match(MapOrder.class, message -> { sparkActor.tell( handleMessage(message), self() );
+                })
+				.match(MapSearch.class, message -> { sparkActor.tell( handleMessage(message), self() );
                 })
 				.match(SparkMessage.class, message -> { checkReserveActor.tell( handleMessage(message), self() );
                 })
-                .match(ValidOrder.class, message -> { sparkActor.tell( handleMessage(message), self() );
+                .match(ValidOrder.class, message -> { buyActor.tell( handleMessage(message), self() );
                 })
                 .match(InvalidOrder.class, message -> { message.getControllerRef().tell( handleMessage(message), self() );
                 })
                 .match(TransactionDetails.class, message -> { message.getControllerRef().tell( handleMessage(message), self() );
+                })
+                .match(SearchResults.class, message -> { message.getControllerRef().tell( handleMessage(message), self() );
                 })
                 .build();
 	}
@@ -87,9 +99,34 @@ public class MasterFlipkartActor extends AbstractActor
 		return message;
 	}
 	
+	private ProductSearchGet handleMessage(ProductSearchGet message)
+	{			
+		//System.out.println("SparkMessage Received by MasterActor");
+
+		message.setControllerRef( getSender() );
+		
+		return message;
+	}
+	
 	private MapOrder handleMessage(MapOrder message)
 	{			
 		//System.out.println("MapOrder Received by MasterActor");
+		
+		return message;
+	}
+	
+	private MapSearch handleMessage(MapSearch message)
+	{			
+		//System.out.println("MapSearch Received by MasterActor");
+		
+		return message;
+	}
+	
+	private ProductSearch handleMessage(ProductSearch message)
+	{			
+		//System.out.println("MapOrder Received by MasterActor");
+	
+		message.setControllerRef( getSender() );
 		
 		return message;
 	}
@@ -121,6 +158,15 @@ public class MasterFlipkartActor extends AbstractActor
 		System.out.println("Enviando Final para: " + message.getControllerRef() );
 		
 		return message.getMessage();
+	}
+	
+	private JsonNode handleMessage(SearchResults message)
+	{
+		count++;
+		System.out.println("ENDS Count: " + count);
+		System.out.println("Enviando Final para: " + message.getControllerRef() );
+		
+		return message.getJsonNode();
 	}
 	
 	@Override

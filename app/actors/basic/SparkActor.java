@@ -3,7 +3,6 @@ package actors.basic;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.collections.IteratorUtils;
@@ -13,27 +12,25 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.mapping.Mapper;
-import com.datastax.driver.mapping.MappingManager;
-import com.datastax.driver.mapping.Result;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
-import com.datastax.spark.connector.japi.rdd.CassandraJavaRDD;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.*;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;
-import akka.japi.Function2;
 import datatypes.MapOrder;
+import datatypes.MapSearch;
+import datatypes.ProductSearchGet;
+import datatypes.SearchResults;
 import datatypes.SparkMessage;
 import datatypes.TransactionDetails;
 import datatypes.ValidOrder;
 import models.Kart;
 import models.Order;
 import models.Product;
+import play.libs.Json;
 import scala.Tuple2;
 import utils.ProductsComparator;
 
@@ -48,15 +45,16 @@ public class SparkActor extends AbstractActor
 	public void preStart()
 	{
 		System.out.println("Abrindo Conexao Spark com Cassandra");
-		conf = new SparkConf().setAppName("flipkartSMACK").setMaster("local[*]");		
+		
+		conf = new SparkConf(true)
+				.setAppName("flipkartSMACK")
+		        .setMaster("local[*]");
+		
 		context = new JavaSparkContext(conf);
-
-		System.out.println("Default Min PARTITIONS: " + context.defaultMinPartitions());
-		System.out.println("Default Parallelism: " + context.defaultParallelism());
 		
 		//Initialise the resources to be used by actor e.g. db
-		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
-		session = cluster.connect("mykeyspace");
+		//cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
+		//session = cluster.connect("mykeyspace");
 	}
 	
 	public static Props getProps()
@@ -70,8 +68,11 @@ public class SparkActor extends AbstractActor
 		return receiveBuilder()
 	        .match(MapOrder.class, message -> { sender().tell( handleMessage(message), self());
 	        })
-            .match(ValidOrder.class,  
-            		message -> { sender().tell( handleMessage(message), self());
+            .match(MapSearch.class, message -> { sender().tell( handleMessage(message), self());
+            })
+            .match(ProductSearchGet.class, message -> { sender().tell( handleMessage(message), self());
+            })
+            .match(ValidOrder.class, message -> { sender().tell( handleMessage(message), self());
             })
 	        .build();
 	}
@@ -80,7 +81,6 @@ public class SparkActor extends AbstractActor
 	{		
 		//System.out.println("MapOrder Received by SparkActor");
 
-		
 		HashMap<Integer, Product> bestProducts = new HashMap<Integer, Product>();
 		
 		SparkMessage sparkMessage = new SparkMessage();
@@ -102,18 +102,25 @@ public class SparkActor extends AbstractActor
 			        .repartition(context.defaultParallelism())
 			        .filter(  p -> kart.isInKart(p) )
 					.groupBy(p -> p.getType());
+			
+			/*JavaRDD<Product> listaFiltered = CassandraJavaUtil.javaFunctions(context)
+			        .cassandraTable("mykeyspace", "products", mapRowTo( Product.class ))
+			        .select("product_id", "name", "price", "type", "quantity")
+			        .repartition(context.defaultParallelism())
+					.filter(  p -> kart.isInKart(p) );*/
+			
 			        //.where("type = ?", product.getType() );
 			
 			long elapsedTimeMillis = System.currentTimeMillis()-start;
 			System.out.println("Tempo de Leitura + Filtragem - Spark - Cassandra " + elapsedTimeMillis + " ms");
 			
 			
-			start = System.currentTimeMillis();
+			//start = System.currentTimeMillis();
 			
 			// -------------------- ONLY CASSANDRA QUERY -----------------------------
 			
 			//ResultSet results = session.execute("SELECT * FROM products WHERE product_id = " + '0'); 
-			ResultSet results = session.execute("SELECT * FROM products"); 
+			/*ResultSet results = session.execute("SELECT * FROM products"); 
 			
 			List<Product> cassandraList = new ArrayList<Product>();
 			
@@ -130,28 +137,16 @@ public class SparkActor extends AbstractActor
 			    //System.out.println("Produto : " + p.getName() );
 			    cassandraList.add(p);
 			}
-
-			/*
-			if( iterator.hasNext() )
-			{
-				// Update
-				Row row = iterator.next();
-				
-				Product prod = new Product(row.getInt("product_id"), row.getString("name"), row.getInt("type"), row.getDouble("price"), row.getInt("quantity"));
-				
-				
-				String line = "Product_id = " + prod.getProduct_id() + " Name = "+ prod.getName();
-				System.out.println(line);
-			}*/
 			
 			JavaRDD<Product> productsRDD = context.parallelize(cassandraList);		
 			JavaPairRDD<Integer, Iterable<Product>> listaFilteredCassandra = productsRDD.filter(  p -> kart.isInKart(p) )
 													 						   			.groupBy(p -> p.getType());
+			*/
 			
 			// --------------------------------- FINAL QUERY CASSANDRA -----------------------------------
 
-			elapsedTimeMillis = System.currentTimeMillis()-start;
-			System.out.println("Tempo de Leitura + Filtragem - Akka - Cassandra " + elapsedTimeMillis + " ms");
+			//elapsedTimeMillis = System.currentTimeMillis()-start;
+			//System.out.println("Tempo de Leitura + Filtragem - Akka - Cassandra " + elapsedTimeMillis + " ms");
 			
 			/*for( Tuple2<Integer, Iterable<Product>> pair : listaFiltered.collect() )
 			{
@@ -163,7 +158,7 @@ public class SparkActor extends AbstractActor
 				}
 			}*/
 		
-			for( Tuple2<Integer, Iterable<Product>> pair : listaFilteredCassandra.collect() )
+			for( Tuple2<Integer, Iterable<Product>> pair : listaFiltered.collect() )
 			{
 				@SuppressWarnings("unchecked")
 				List<Product> list = (ArrayList<Product>) IteratorUtils.toList(pair._2.iterator());
@@ -184,6 +179,78 @@ public class SparkActor extends AbstractActor
 		sparkMessage.setControllerRef( message.getControllerRef() );
 		
 		return sparkMessage;
+	}
+	
+	private SearchResults handleMessage(MapSearch message)
+	{		
+		//System.out.println("MapOrder Received by SparkActor");
+		
+		Product prod = message.getProduct();
+		
+		JsonNode results = null;
+		SearchResults searchResults = new SearchResults();
+		
+		if(prod != null)
+		{
+			long start = System.currentTimeMillis();
+			
+			List<Product> listaFiltered = CassandraJavaUtil.javaFunctions(context)
+		        .cassandraTable("mykeyspace", "products", mapRowTo( Product.class ))
+		        .select("product_id", "name", "price", "type", "quantity")
+		        .repartition(context.defaultParallelism())
+				.filter(  p -> p.getType() == prod.getType() )
+				.takeOrdered(10, new ProductsComparator());
+				
+				long elapsedTimeMillis = System.currentTimeMillis()-start;
+				System.out.println("Tempo de Leitura + Filtragem - Spark - Cassandra - SEARCH " + elapsedTimeMillis + " ms");
+				
+				results = Json.toJson(listaFiltered);
+		}
+		else
+		{
+			//System.out.println("Busca Invalida");	
+		}
+		
+		
+		searchResults.setJsonNode(results);
+		searchResults.setControllerRef( message.getControllerRef() );
+		
+		return searchResults;
+	}
+	
+	private SearchResults handleMessage(ProductSearchGet message)
+	{		
+		//System.out.println("MapOrder Received by SparkActor");
+	
+		JsonNode results = null;
+		SearchResults searchResults = new SearchResults();
+		
+		if(message.getType() >= 0)
+		{
+			long start = System.currentTimeMillis();
+			
+			List<Product> listaFiltered = CassandraJavaUtil.javaFunctions(context)
+		        .cassandraTable("mykeyspace", "products", mapRowTo( Product.class ))
+		        .select("product_id", "name", "price", "type", "quantity")
+		        .repartition(context.defaultParallelism())
+				.filter(  p -> p.getType() == message.getType() )
+				.takeOrdered(10, new ProductsComparator());
+				
+				long elapsedTimeMillis = System.currentTimeMillis()-start;
+				System.out.println("Tempo de Leitura + Filtragem - Spark - Cassandra - SEARCH " + elapsedTimeMillis + " ms");
+				
+				results = Json.toJson(listaFiltered);
+		}
+		else
+		{
+			//System.out.println("Busca Invalida");	
+		}
+		
+		
+		searchResults.setJsonNode(results);
+		searchResults.setControllerRef( message.getControllerRef() );
+		
+		return searchResults;
 	}
 	
 	private TransactionDetails handleMessage(ValidOrder message)
@@ -214,6 +281,16 @@ public class SparkActor extends AbstractActor
 		{
 			System.out.println("Fechando Conexao Spark com Cassandra");
 			context.close();
+		}
+		
+		if( cluster != null)
+		{
+			cluster.close();
+		}
+		
+		if( session != null)
+		{
+			session.close();
 		}
 	}
 }

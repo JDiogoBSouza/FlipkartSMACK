@@ -14,3 +14,7 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 
 # Buy POST Page
 POST	/buy 					controllers.ServerActorController.buy()
+
+# Search POST Page
+GET   	/search/:type           controllers.ServerActorController.searchGet(type: Long)
+POST	/search 				controllers.ServerActorController.search()
